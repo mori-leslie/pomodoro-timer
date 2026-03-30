@@ -9,6 +9,10 @@ sys.path.insert(0, os.path.dirname(__file__))
 import config
 import stats as statsmod
 
+SOUNDS_DIR = os.path.join(os.path.dirname(__file__), "sounds")
+SOUND_SESSION_DONE = os.path.join(SOUNDS_DIR, "session_done.wav")
+SOUND_ALL_DONE     = os.path.join(SOUNDS_DIR, "all_done.wav")
+
 # ── Appearance ────────────────────────────────────────────────────────────────
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -70,10 +74,12 @@ def notify(title, body):
         )
     except FileNotFoundError:
         pass
-    # Audio chime as backup
+
+def chime(all_done=False):
+    sound = SOUND_ALL_DONE if all_done else SOUND_SESSION_DONE
     try:
         subprocess.Popen(
-            ["paplay", "/usr/share/sounds/freedesktop/stereo/alarm-clock-elapsed.oga"],
+            ["paplay", sound],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
         )
     except FileNotFoundError:
@@ -261,11 +267,14 @@ class PomodoroApp(ctk.CTk):
         if self.pstate.session == "work":
             statsmod.record_session(config.WORK_MINUTES)
             self._refresh_stats()
-            notify("Focus session done!", "Time for a well-earned break.")
             if self.pstate.cycle >= config.CYCLES_BEFORE_LONG_BREAK:
+                chime(all_done=True)
+                notify("All 4 sessions done! 🎉", "Legendary. Take a long break.")
                 self.pstate.session = "long_break"
                 self.pstate.cycle = 1
             else:
+                chime(all_done=False)
+                notify("Focus session done!", "Time for a well-earned break.")
                 self.pstate.session = "short_break"
         else:
             notify("Break over!", "Back to it — you've got this.")
