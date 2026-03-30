@@ -71,6 +71,14 @@ def notify(title, body):
         )
     except FileNotFoundError:
         pass
+    # Audio chime as backup
+    try:
+        subprocess.Popen(
+            ["paplay", "/usr/share/sounds/freedesktop/stereo/alarm-clock-elapsed.oga"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
+    except FileNotFoundError:
+        pass
 
 # ── App ────────────────────────────────────────────────────────────────────────
 class PomodoroApp(ctk.CTk):
