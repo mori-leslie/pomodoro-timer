@@ -329,7 +329,15 @@ class PomodoroApp(ctk.CTk):
 
     def destroy(self):
         stop_music(self.pstate)
+        self._save_partial_session()
         super().destroy()
+
+    def _save_partial_session(self):
+        if self.pstate.session != "work" or not self.pstate.running:
+            return
+        elapsed = config.WORK_MINUTES - (self.pstate.seconds_left // 60)
+        if elapsed >= 5:
+            statsmod.record_session(elapsed)
 
 
 # ── Entry Point ────────────────────────────────────────────────────────────────
