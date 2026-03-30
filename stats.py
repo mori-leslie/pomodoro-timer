@@ -1,5 +1,6 @@
 import json
 import os
+import tempfile
 from datetime import date, datetime
 
 STATS_FILE = os.path.join(os.path.dirname(__file__), "stats.json")
@@ -14,8 +15,11 @@ def _load():
 
 
 def _save(data):
-    with open(STATS_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    dir_ = os.path.dirname(STATS_FILE)
+    with tempfile.NamedTemporaryFile("w", dir=dir_, delete=False) as tmp:
+        json.dump(data, tmp, indent=2)
+        tmp_name = tmp.name
+    os.replace(tmp_name, STATS_FILE)
 
 
 def record_session(focus_minutes: int):
@@ -60,7 +64,6 @@ def _write_obsidian(data, today, focus_minutes):
     streak = _streak(data)
     time_str = datetime.now().strftime("%H:%M")
 
-    # Build full note content (overwrite each time so it stays current)
     lines = [
         f"# Pomodoro — {today}",
         "",
@@ -72,7 +75,7 @@ def _write_obsidian(data, today, focus_minutes):
         "",
     ]
 
-    # Append log entries — read existing log lines first if file exists
+    # Preserve existing log entries before appending new one
     existing_log = []
     if os.path.exists(note_path):
         with open(note_path) as f:
@@ -88,5 +91,9 @@ def _write_obsidian(data, today, focus_minutes):
     existing_log.append(f"- {time_str} — {focus_minutes} min focus session")
     lines += existing_log
 
-    with open(note_path, "w") as f:
-        f.write("\n".join(lines) + "\n")
+    # Atomic write
+    dir_ = os.path.dirname(note_path)
+    with tempfile.NamedTemporaryFile("w", dir=dir_, delete=False, suffix=".md") as tmp:
+        tmp.write("\n".join(lines) + "\n")
+        tmp_name = tmp.name
+    os.replace(tmp_name, note_path)

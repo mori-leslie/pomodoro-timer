@@ -30,7 +30,6 @@ class PomodoroState:
         self.running       = False
         self.seconds_left  = config.WORK_MINUTES * 60
         self.mpv_proc      = None
-        self._timer_thread = None
 
     def total_seconds(self):
         if self.session == "work":
@@ -234,16 +233,17 @@ class PomodoroApp(ctk.CTk):
         skip_music(self.pstate)
 
     def _skip_break(self):
+        self._transition_to_work()
+
+    def _transition_to_work(self):
         self._cancel_tick()
         self.pstate.running = False
         stop_music(self.pstate)
         self.pstate.session = "work"
-        if self.pstate.cycle == 0:
-            self.pstate.cycle = 1
+        self.pstate.cycle = max(self.pstate.cycle, 1)
         self.pstate.seconds_left = self.pstate.total_seconds()
         self.btn_start.configure(text="Start")
         self._update_display()
-        self._start()
 
     def _refresh_stats(self):
         sessions, minutes, streak = statsmod.get_today_stats()
@@ -262,7 +262,7 @@ class PomodoroApp(ctk.CTk):
             notify("Focus session done!", "Time for a well-earned break.")
             if self.pstate.cycle >= config.CYCLES_BEFORE_LONG_BREAK:
                 self.pstate.session = "long_break"
-                self.pstate.cycle = 0
+                self.pstate.cycle = 1
             else:
                 self.pstate.session = "short_break"
         else:
@@ -280,14 +280,8 @@ class PomodoroApp(ctk.CTk):
         self._start()
 
     def _reset(self):
-        self._cancel_tick()
-        self.pstate.running = False
-        stop_music(self.pstate)
-        self.pstate.session = "work"
         self.pstate.cycle = 1
-        self.pstate.seconds_left = config.WORK_MINUTES * 60
-        self.btn_start.configure(text="Start")
-        self._update_display()
+        self._transition_to_work()
 
     # ── Display ────────────────────────────────────────────────────────────────
     def _update_display(self):
