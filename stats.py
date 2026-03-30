@@ -10,8 +10,11 @@ OBSIDIAN_DIR = os.path.expanduser("~/Documents/Obsidian Vault/Pomodoro")
 def _load():
     if not os.path.exists(STATS_FILE):
         return {}
-    with open(STATS_FILE) as f:
-        return json.load(f)
+    try:
+        with open(STATS_FILE) as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        return {}
 
 
 def _save(data):
@@ -28,12 +31,16 @@ def record_session(focus_minutes: int):
     today = str(date.today())
 
     if today not in data:
-        data[today] = {"sessions": 0, "focus_minutes": 0}
+        data[today] = {"sessions": 0, "focus_minutes": 0, "log": []}
 
     data[today]["sessions"] += 1
     data[today]["focus_minutes"] += focus_minutes
+    data[today].setdefault("log", []).append({
+        "time": datetime.now().strftime("%H:%M"),
+        "minutes": focus_minutes
+    })
     _save(data)
-    _write_obsidian(data, today, focus_minutes)
+    _write_obsidian(data, today)
 
 
 def get_today_stats():
@@ -56,13 +63,13 @@ def _streak(data):
     return streak
 
 
-def _write_obsidian(data, today, focus_minutes):
+def _write_obsidian(data, today):
     os.makedirs(OBSIDIAN_DIR, exist_ok=True)
     note_path = os.path.join(OBSIDIAN_DIR, f"{today}.md")
 
     entry = data[today]
     streak = _streak(data)
-    time_str = datetime.now().strftime("%H:%M")
+    log = entry.get("log", [])
 
     lines = [
         f"# Pomodoro — {today}",
@@ -73,25 +80,8 @@ def _write_obsidian(data, today, focus_minutes):
         "",
         "## Session Log",
         "",
-    ]
+    ] + [f"- {e['time']} — {e['minutes']} min focus session" for e in log]
 
-    # Preserve existing log entries before appending new one
-    existing_log = []
-    if os.path.exists(note_path):
-        with open(note_path) as f:
-            content = f.read()
-        in_log = False
-        for line in content.splitlines():
-            if line == "## Session Log":
-                in_log = True
-                continue
-            if in_log and line.startswith("- "):
-                existing_log.append(line)
-
-    existing_log.append(f"- {time_str} — {focus_minutes} min focus session")
-    lines += existing_log
-
-    # Atomic write
     dir_ = os.path.dirname(note_path)
     with tempfile.NamedTemporaryFile("w", dir=dir_, delete=False, suffix=".md") as tmp:
         tmp.write("\n".join(lines) + "\n")

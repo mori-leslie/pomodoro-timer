@@ -233,6 +233,9 @@ class PomodoroApp(ctk.CTk):
         skip_music(self.pstate)
 
     def _skip_break(self):
+        # Short break skip: apply the cycle increment that would've happened at break end
+        if self.pstate.session == "short_break":
+            self.pstate.cycle += 1
         self._transition_to_work()
 
     def _transition_to_work(self):
@@ -240,7 +243,6 @@ class PomodoroApp(ctk.CTk):
         self.pstate.running = False
         stop_music(self.pstate)
         self.pstate.session = "work"
-        self.pstate.cycle = max(self.pstate.cycle, 1)
         self.pstate.seconds_left = self.pstate.total_seconds()
         self.btn_start.configure(text="Start")
         self._update_display()
