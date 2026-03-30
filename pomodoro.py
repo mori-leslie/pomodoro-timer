@@ -1,6 +1,7 @@
 import customtkinter as ctk
 import subprocess
 import random
+import signal
 import sys
 import os
 
@@ -151,6 +152,17 @@ class PomodoroApp(ctk.CTk):
         )
         self.btn_skip_music.grid(row=0, column=1)
 
+        # Skip break button (only visible during breaks)
+        self.btn_skip_break = ctk.CTkButton(
+            self.panel, text="Skip break →", width=120, height=30,
+            font=ctk.CTkFont(size=12),
+            fg_color="#3a3f4b", hover_color="#4a5060",
+            text_color="#9ca3af",
+            command=self._skip_break
+        )
+        self.btn_skip_break.pack(pady=(10, 0))
+        self.btn_skip_break.pack_forget()  # hidden by default
+
         # Stats row
         stats_frame = ctk.CTkFrame(self.panel, fg_color="transparent")
         stats_frame.pack(pady=(16, 0))
@@ -212,6 +224,18 @@ class PomodoroApp(ctk.CTk):
 
     def _skip_music(self):
         skip_music(self.pstate)
+
+    def _skip_break(self):
+        self._cancel_tick()
+        self.pstate.running = False
+        stop_music(self.pstate)
+        self.pstate.session = "work"
+        if self.pstate.cycle == 0:
+            self.pstate.cycle = 1
+        self.pstate.seconds_left = self.pstate.total_seconds()
+        self.btn_start.configure(text="Start")
+        self._update_display()
+        self._start()
 
     def _refresh_stats(self):
         sessions, minutes, streak = statsmod.get_today_stats()
@@ -285,6 +309,11 @@ class PomodoroApp(ctk.CTk):
         self.btn_start.configure(fg_color=color)
         self.lbl_cycle.configure(text=cycle_text)
 
+        if s.session == "work":
+            self.btn_skip_break.pack_forget()
+        else:
+            self.btn_skip_break.pack(pady=(10, 0))
+
     def destroy(self):
         stop_music(self.pstate)
         super().destroy()
@@ -293,4 +322,5 @@ class PomodoroApp(ctk.CTk):
 # ── Entry Point ────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     app = PomodoroApp()
+    signal.signal(signal.SIGINT, lambda *_: app.destroy())
     app.mainloop()
